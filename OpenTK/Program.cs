@@ -7,58 +7,68 @@ using OpenTK.Input;
 
 namespace Example
 {
-    class MyApplication
+    class Program
     {
-        [STAThread]
+        //GameWindow is a Class implemented by OpenTK that works in place of GLFW or the like
+        class Game : GameWindow
+        {
+            //By overriding the functions of GameWindow, I can take control and make it work to my specifications
+            protected override void OnLoad(EventArgs e)
+            {
+                base.OnLoad(e);
+
+                Title = "Hello OpenTK!";
+
+                GL.ClearColor(Color.Black);
+            }
+            protected override void OnRenderFrame(FrameEventArgs e)
+            {
+                base.OnRenderFrame(e);
+
+                GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+
+                Matrix4 modelview = Matrix4.LookAt(Vector3.Zero, Vector3.UnitZ, Vector3.UnitY);
+
+                GL.MatrixMode(MatrixMode.Modelview);
+
+                GL.LoadMatrix(ref modelview);
+
+                //Drawing with GL, doing it like this is called "Immediate Mode" and is "incorrect"
+                GL.Begin(PrimitiveType.Triangles);
+
+                GL.Color3(1.0f, 0.0f, 0.0f);
+                GL.Vertex3(-1.0f, -1.0f, 4.0f);
+
+                GL.Color3(0.0f, 1.0f, 0.0f);
+                GL.Vertex3(1.0f, -1.0f, 4.0f);
+
+                GL.Color3(0.0f, 0.0f, 1.0f);
+                GL.Vertex3(0.0f, 1.0f, 4.0f);
+
+                GL.End();
+
+
+                SwapBuffers();
+            }
+            protected override void OnResize(EventArgs e)
+            {
+                base.OnResize(e);
+
+                GL.Viewport(ClientRectangle.X, ClientRectangle.Y, ClientRectangle.Width, ClientRectangle.Height);
+
+                Matrix4 projection = Matrix4.CreatePerspectiveFieldOfView((float)Math.PI / 4, Width / (float)Height, 1.0f, 64.0f);
+
+                GL.MatrixMode(MatrixMode.Projection);
+
+                GL.LoadMatrix(ref projection);
+            }
+        }
+
         public static void Main()
         {
-            using (var game = new GameWindow())
+            using (Game game = new Game())
             {
-                game.Load += (sender, e) =>
-                {
-                    // setup settings, load textures, sounds
-                    game.VSync = VSyncMode.On;
-                };
-
-                game.Resize += (sender, e) =>
-                {
-                    GL.Viewport(0, 0, game.Width, game.Height);
-                };
-
-                game.UpdateFrame += (sender, e) =>
-                {
-                    // add game logic, input handling
-                    if (game.Keyboard[Key.Escape])
-                    {
-                        game.Exit();
-                    }
-                };
-
-                game.RenderFrame += (sender, e) =>
-                {
-                    // render graphics
-                    GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
-
-                    GL.MatrixMode(MatrixMode.Projection);
-                    GL.LoadIdentity();
-                    GL.Ortho(-1.0, 1.0, -1.0, 1.0, 0.0, 4.0);
-
-                    GL.Begin(PrimitiveType.Triangles);
-
-                    GL.Color3(Color.MidnightBlue);
-                    GL.Vertex2(-1.0f, 1.0f);
-                    GL.Color3(1.0f, 0.0f, 0.0f);
-                    GL.Vertex2(0.0f, -1.0f);
-                    GL.Color3(Color.Ivory);
-                    GL.Vertex2(1.0f, 1.0f);
-
-                    GL.End();
-
-                    game.SwapBuffers();
-                };
-
-                // Run the game at 60 updates per second
-                game.Run(60.0);
+                game.Run(30, 30);
             }
         }
     }
