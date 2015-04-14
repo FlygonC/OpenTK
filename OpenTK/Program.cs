@@ -16,17 +16,11 @@ namespace Example
         //GameWindow is a Class implemented by OpenTK that works in place of GLFW or the like
         class Game : GameWindow
         {
-            //Shaders
-            int pgmID, vsID, fsID;
-            //Shader Attributes
-            int attribute_vcol;
-            int attribute_vpos;
-            int uniform_mview;
+            //ShaderProgram class Dictionary
+            Dictionary<string, ShaderProgram> shaders = new Dictionary<string, ShaderProgram>();
+            string activeShader = "default";
+            //Element Buffer
             int ibo_elements;
-            //Finally Vertex Buffers
-            int vbo_position;
-            int vbo_color;
-            int vbo_mview;
             //Buffer data
             Vector3[] vertdata;
             Vector3[] coldata;
@@ -36,7 +30,7 @@ namespace Example
             float time = 0.0f;
 
             //Custom Shader loading from file
-            void loadShader(String filename, ShaderType type, int program, out int address)
+            /*void loadShader(String filename, ShaderType type, int program, out int address)
             {
                 address = GL.CreateShader(type);
                 using (StreamReader sr = new StreamReader(filename))
@@ -46,32 +40,14 @@ namespace Example
                 GL.CompileShader(address);
                 GL.AttachShader(program, address);
                 Console.WriteLine(GL.GetShaderInfoLog(address));
-            }
+            }*/
             //creating a shader program
-            //Initialize program for shaders and program
+            //Initialize program for shaders
             void InitProgram()
             {
-                pgmID = GL.CreateProgram();
-
-                loadShader("Shaders/vs.glsl", ShaderType.VertexShader, pgmID, out vsID);
-                loadShader("Shaders/fs.glsl", ShaderType.FragmentShader, pgmID, out fsID);
-
-                GL.LinkProgram(pgmID);
-                Console.WriteLine(GL.GetProgramInfoLog(pgmID));
-
-                attribute_vpos = GL.GetAttribLocation(pgmID, "vPosition");
-                attribute_vcol = GL.GetAttribLocation(pgmID, "vColor");
-                uniform_mview = GL.GetUniformLocation(pgmID, "modelview");
-
-                if (attribute_vpos == -1 || attribute_vcol == -1 || uniform_mview == -1)
-                {
-                    Console.WriteLine("Error binding attributes");
-                }
-
-                GL.GenBuffers(1, out vbo_position);
-                GL.GenBuffers(1, out vbo_color);
-                GL.GenBuffers(1, out vbo_mview);
                 GL.GenBuffers(1, out ibo_elements);
+
+                shaders.Add("default", new ShaderProgram("Shaders/vs.glsl", "Shaders/fs.glsl", true));
             }
             
             //By overriding the functions of GameWindow, I can take control and make it work to my specifications
@@ -95,10 +71,12 @@ namespace Example
                 coldata = new Vector3[] { 
                     new Vector3(1f, 0f, 0f),
                     new Vector3( 0f, 0f, 1f), 
-                    new Vector3( 0f,  1f, 0f),new Vector3(1f, 0f, 0f),
+                    new Vector3( 1f,  0f, 0f),
+                    new Vector3(0f, 0f, 1f),
                     new Vector3( 0f, 0f, 1f), 
-                    new Vector3( 0f,  1f, 0f),new Vector3(1f, 0f, 0f),
-                    new Vector3( 0f, 0f, 1f)
+                    new Vector3( 1f,  0f, 0f),
+                    new Vector3(0f, 0f, 1f),
+                    new Vector3( 1f, 0f, 0f)
                 }; 
                 mviewdata = new Matrix4[]{
                     Matrix4.Identity
@@ -137,24 +115,32 @@ namespace Example
                 time += (float)e.Time;
                 
                 //Buffer handeling
-                GL.BindBuffer(BufferTarget.ArrayBuffer, vbo_position);
-                GL.BufferData<Vector3>(BufferTarget.ArrayBuffer, (IntPtr)(vertdata.Length * Vector3.SizeInBytes), vertdata, BufferUsageHint.StaticDraw);
-                GL.VertexAttribPointer(attribute_vpos, 3, VertexAttribPointerType.Float, false, 0, 0);
 
-                GL.BindBuffer(BufferTarget.ArrayBuffer, vbo_color);
-                GL.BufferData<Vector3>(BufferTarget.ArrayBuffer, (IntPtr)(coldata.Length * Vector3.SizeInBytes), coldata, BufferUsageHint.StaticDraw);
-                GL.VertexAttribPointer(attribute_vcol, 3, VertexAttribPointerType.Float, true, 0, 0);
+                GL.BindBuffer(BufferTarget.ArrayBuffer, shaders[activeShader].GetBuffer("vPosition"));
+
+                GL.BufferData<Vector3>(BufferTarget.ArrayBuffer, (IntPtr)(vertdata.Length * Vector3.SizeInBytes), vertdata, BufferUsageHint.StaticDraw);
+                GL.VertexAttribPointer(shaders[activeShader].GetAttribute("vPosition"), 3, VertexAttribPointerType.Float, false, 0, 0);
+
+                if (shaders[activeShader].GetAttribute("vColor") != -1)
+                {
+                    GL.BindBuffer(BufferTarget.ArrayBuffer, shaders[activeShader].GetBuffer("vColor"));
+                    GL.BufferData<Vector3>(BufferTarget.ArrayBuffer, (IntPtr)(coldata.Length * Vector3.SizeInBytes), coldata, BufferUsageHint.StaticDraw);
+                    GL.VertexAttribPointer(shaders[activeShader].GetAttribute("vColor"), 3, VertexAttribPointerType.Float, true, 0, 0);
+                }
+                
+               
+
                 //uniform matrix
-                mviewdata[0] = Matrix4.CreateRotationY(0.55f * time) * 
-                    Matrix4.CreateRotationX(0.15f * time) * 
+                mviewdata[0] = Matrix4.CreateRotationY(1f * time) * 
+                    Matrix4.CreateRotationX(0.5f * time) * 
                     Matrix4.CreateTranslation(0.0f, 0.0f, -3.0f) * 
                     Matrix4.CreatePerspectiveFieldOfView(1.3f, ClientSize.Width / (float)ClientSize.Height, 1.0f, 40.0f);
-                GL.UniformMatrix4(uniform_mview, false, ref mviewdata[0]);
+                GL.UniformMatrix4(shaders[activeShader].GetUniform("modelview"), false, ref mviewdata[0]);
                 //Index Buffer
                 GL.BindBuffer(BufferTarget.ElementArrayBuffer, ibo_elements);
                 GL.BufferData(BufferTarget.ElementArrayBuffer, (IntPtr)(indicedata.Length * sizeof(int)), indicedata, BufferUsageHint.StaticDraw);
                 //Enable Program
-                GL.UseProgram(pgmID);
+                GL.UseProgram(shaders[activeShader].ProgramID);
                 //Clear buffer
                 GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
             }
@@ -167,14 +153,14 @@ namespace Example
                 GL.Clear(ClearBufferMask.ColorBufferBit);
                 GL.Clear(ClearBufferMask.DepthBufferBit);
                 GL.Enable(EnableCap.DepthTest);
-                //drawing with vertex buffers
-                GL.EnableVertexAttribArray(attribute_vpos);
-                GL.EnableVertexAttribArray(attribute_vcol);
+
+                //GL.UniformMatrix4(shaders[activeShader].GetUniform("modelview"), false, ref v.ModelViewProjectionMatrix);
+                //drawing with ShaderProgram
+                shaders[activeShader].EnableVertexAttribArrays();
 
                 GL.DrawElements(BeginMode.Triangles, indicedata.Length, DrawElementsType.UnsignedInt, 0);
- 
-                GL.DisableVertexAttribArray(attribute_vpos);
-                GL.DisableVertexAttribArray(attribute_vcol);
+
+                shaders[activeShader].DisableVertexAttribArrays();
  
                 GL.Flush();
 
