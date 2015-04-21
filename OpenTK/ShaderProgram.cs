@@ -9,6 +9,8 @@ using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Input;
 
+//This whole stuff hurts my head a little, a lot of OpenTK stuff is being used so its not super easy to get your head around.
+
 namespace OpenTK
 {
     public class AttributeInfo
@@ -203,7 +205,7 @@ namespace OpenTK
             }
         }
 
-        //New Constructor to create full Shader Program + Buffers with one call
+        //New Constructor to create full Shader Program + Buffers
         public ShaderProgram(String vshader, String fshader, bool fromFile = false)
         {
             ProgramID = GL.CreateProgram();
